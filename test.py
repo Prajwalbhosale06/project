@@ -5,14 +5,14 @@ import math
 import time
 import os
 
-cap = cv2.VideoCapture(1)    # Camera index
+cap = cv2.VideoCapture(1)  
 detector = HandDetector(maxHands=1)
 offset = 20
 imgsize = 300
 counter = 0
 
 folder = "/Users/prajwalbhosale/Documents/project/data/thankyou"
-os.makedirs(folder, exist_ok=True)  # Ensure folder exists
+os.makedirs(folder, exist_ok=True) 
 
 while True:
     success, img = cap.read()
@@ -30,7 +30,6 @@ while True:
 
         imagewhite = np.ones((imgsize, imgsize, 3), np.uint8) * 255
 
-        # Safe crop boundaries
         y1 = max(0, y - offset)
         y2 = min(img.shape[0], y + h + offset)
         x1 = max(0, x - offset)
@@ -47,7 +46,7 @@ while True:
         h_c, w_c = imgCrop.shape[:2]
         aspectratio = h_c / w_c
 
-        # Resize according to aspect ratio
+       
         if aspectratio > 1:
             k = imgsize / h_c
             wcal = math.ceil(k * w_c)
@@ -65,18 +64,15 @@ while True:
         cv2.imshow('ImageCrop', imgCrop)
         cv2.imshow('ImageWhite', imagewhite)
 
-    # Show main image
     cv2.imshow("image", img)
 
     key = cv2.waitKey(1)
 
-    # Save image when 's' is pressed
     if key == ord('s'):
         counter += 1
         cv2.imwrite(f'{folder}/Image_{time.time()}.jpg', imagewhite)
         print("Saved:", counter)
 
-    # Quit program when 'q' is pressed
     elif key == ord('q'):
         break
 
