@@ -1,79 +1,55 @@
 import cv2
 from cvzone.HandTrackingModule import HandDetector
 import numpy as np
-import math
-import time
+import csv
 import os
 
-cap = cv2.VideoCapture(1)  
+cap = cv2.VideoCapture(1)
 detector = HandDetector(maxHands=1)
-offset = 20
-imgsize = 300
-counter = 0
 
-folder = "/Users/prajwalbhosale/Documents/project/data/thankyou"
-os.makedirs(folder, exist_ok=True) 
+current_label = "Love you"
+
+file_path = "SignLanguageData.csv"
+
+if not os.path.exists(file_path):
+    with open(file_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        
+        headers = ["label"]
+        for i in range(21):
+            headers.extend([f"x{i}", f"y{i}"])
+        writer.writerow(headers)
+
+print(f"Press 's' to save data for: {current_label}")
 
 while True:
     success, img = cap.read()
-    img = cv2.flip(img, 1)  
-
-    if not success:
-        print("Camera not working")
-        break
-
-    hands, img = detector.findHands(img)
+    img = cv2.flip(img, 1)
+    
+    hands, img = detector.findHands(img, draw=True) 
 
     if hands:
-        hand = hands[0]
-        x, y, w, h = hand['bbox']
+        lmList = hands[0]['lmList'] 
+        
+        
+        x, y, w, h = hands[0]['bbox']
+        
+        normalized_landmarks = []
+        for lm in lmList:
+            
+            norm_x = (lm[0] - x) / w
+            norm_y = (lm[1] - y) / h
+            normalized_landmarks.extend([norm_x, norm_y])
 
-        imagewhite = np.ones((imgsize, imgsize, 3), np.uint8) * 255
+        key = cv2.waitKey(1)
+        if key == ord('s'):
+            with open(file_path, mode='a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([current_label] + normalized_landmarks)
+            print(f"Data Saved for {current_label}")
 
-        y1 = max(0, y - offset)
-        y2 = min(img.shape[0], y + h + offset)
-        x1 = max(0, x - offset)
-        x2 = min(img.shape[1], x + w + offset)
-
-        imgCrop = img[y1:y2, x1:x2]
-
-        if imgCrop.size == 0:
-            cv2.imshow("image", img)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            continue
-
-        h_c, w_c = imgCrop.shape[:2]
-        aspectratio = h_c / w_c
-
-       
-        if aspectratio > 1:
-            k = imgsize / h_c
-            wcal = math.ceil(k * w_c)
-            imgResize = cv2.resize(imgCrop, (wcal, imgsize))
-            wgap = math.ceil((imgsize - wcal) / 2)
-            imagewhite[:, wgap:wgap + wcal] = imgResize
-
-        else:
-            k = imgsize / w_c
-            hcal = math.ceil(k * h_c)
-            imgResize = cv2.resize(imgCrop, (imgsize, hcal))
-            hgap = math.ceil((imgsize - hcal) / 2)
-            imagewhite[hgap:hgap + hcal, :] = imgResize
-
-        cv2.imshow('ImageCrop', imgCrop)
-        cv2.imshow('ImageWhite', imagewhite)
-
-    cv2.imshow("image", img)
-
-    key = cv2.waitKey(1)
-
-    if key == ord('s'):
-        counter += 1
-        cv2.imwrite(f'{folder}/Image_{time.time()}.jpg', imagewhite)
-        print("Saved:", counter)
-
-    elif key == ord('q'):
+    cv2.imshow("Image", img)
+    if cv2.waitKey(1) == ord('q'):
         break
 
 cap.release()
