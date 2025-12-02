@@ -1,0 +1,15 @@
+# Python virtual environment
+venv/
+env/
+.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Mac OS system files
+.DS_Store
+
+# Large files or executables (Optional but recommended)
+ngrok
+*.p

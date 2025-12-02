@@ -7,7 +7,7 @@ import os
 cap = cv2.VideoCapture(1) 
 detector = HandDetector(maxHands=2) 
 
-current_label = "Hello" 
+current_label = "No" 
 file_path = "SignLanguageData_Dual.csv"
 
 def get_normalized_landmarks(hand):
