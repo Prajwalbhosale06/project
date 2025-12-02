@@ -12,12 +12,19 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-
         #localVideo {
             transform: scaleX(-1);
         }
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
+        }
+        /* Custom class for the toggle switch transition */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
         }
     </style>
 </head>
@@ -50,7 +57,6 @@
     </div>
 
     <div id="appInterface" class="hidden flex-1 flex flex-col h-full">
-        
         <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
             <div>
                 <h2 class="text-xl font-bold flex items-center gap-2">
@@ -65,9 +71,7 @@
         </div>
 
         <div class="flex-1 flex p-4 gap-4 overflow-hidden">
-            
             <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-fr" id="videoGrid">
-
                 <div class="relative bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
                     <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
                     <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm backdrop-blur-sm">You</div>
@@ -77,21 +81,29 @@
             <div class="w-80 flex flex-col gap-4">
                 
                 <div class="bg-gray-800 rounded-xl p-4 flex-1 flex flex-col border border-gray-700 overflow-hidden">
-                    <h3 class="font-semibold mb-3 flex items-center gap-2 text-blue-400">
-                        <i data-lucide="hand"></i> Detected Signs
-                    </h3>
-                    <div id="signsLog" class="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-hide">
+                    
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold flex items-center gap-2 text-blue-400">
+                            <i data-lucide="hand"></i> Signs
+                        </h3>
+                        
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400">Detect</span>
+                            <button id="signToggleBtn" onclick="toggleSignDetection()" class="w-10 h-5 bg-gray-600 rounded-full relative transition-colors duration-200 focus:outline-none">
+                                <div id="signToggleCircle" class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform duration-200"></div>
+                            </button>
+                        </div>
+                    </div>
 
-                        <div class="text-center text-gray-500 text-sm mt-10">Waiting for signs...</div>
+                    <div id="signsLog" class="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-hide">
+                        <div id="signStatusMsg" class="text-center text-gray-500 text-sm mt-10">Detection is OFF</div>
                     </div>
                 </div>
 
-               
                 <div class="bg-gray-800 rounded-xl p-4 h-1/2 flex flex-col border border-gray-700">
                     <h3 class="font-semibold mb-2 text-green-400">Chat</h3>
                     <div id="chatLog" class="flex-1 overflow-y-auto space-y-2 mb-3 pr-2 scrollbar-hide text-sm">
-                        
-                    </div>
+                        </div>
                     <div class="flex gap-2">
                         <input type="text" id="chatInput" placeholder="Type..." class="flex-1 bg-gray-700 border-none rounded px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none">
                         <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded transition">
@@ -102,7 +114,6 @@
             </div>
         </div>
 
-        
         <div class="bg-gray-800 border-t border-gray-700 p-4 flex justify-center gap-4">
             <button onclick="toggleVideo()" id="btnVideo" class="p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition">
                 <i data-lucide="video"></i>
@@ -118,8 +129,8 @@
 
 
     <script>
-       
-        const SOCKET_URL = window.location.origin;         
+        // CONFIGURATION
+        const SOCKET_URL = window.location.origin; // Or 'http://localhost:5000'
         let socket;
         let localStream;
         let username;
@@ -127,6 +138,9 @@
         let peerConnections = {}; 
         let isVideoEnabled = true;
         let isAudioEnabled = true;
+        
+        // NEW STATE VARIABLE
+        let isSignDetectionEnabled = false; // Defaulted to OFF
         let frameInterval;
 
         const rtcConfig = {
@@ -135,10 +149,45 @@
             ]
         };
 
-       
+        // Initialize Icons
         lucide.createIcons();
 
-       
+        // --- NEW FUNCTION: Toggle Sign Detection ---
+        function toggleSignDetection() {
+            isSignDetectionEnabled = !isSignDetectionEnabled;
+            
+            const btn = document.getElementById('signToggleBtn');
+            const circle = document.getElementById('signToggleCircle');
+            const statusMsg = document.getElementById('signStatusMsg');
+
+            if (isSignDetectionEnabled) {
+                // UI: Switch ON (Green)
+                btn.classList.replace('bg-gray-600', 'bg-green-500');
+                circle.classList.add('translate-x-5');
+                
+                // Clear status or show waiting
+                if(statusMsg) statusMsg.innerText = "Waiting for signs...";
+            } else {
+                // UI: Switch OFF (Gray)
+                btn.classList.replace('bg-green-500', 'bg-gray-600');
+                circle.classList.remove('translate-x-5');
+                
+                // Show stopped status
+                if(statusMsg) {
+                    statusMsg.innerText = "Detection is OFF";
+                } else {
+                    // Create status msg if it was removed by a sign log
+                    const log = document.getElementById('signsLog');
+                    const msg = document.createElement('div');
+                    msg.id = 'signStatusMsg';
+                    msg.className = "text-center text-gray-500 text-sm mt-10";
+                    msg.innerText = "Detection is OFF";
+                    log.appendChild(msg);
+                }
+            }
+        }
+
+        // --- Join Call ---
         async function joinCall() {
             username = document.getElementById('usernameInput').value;
             roomId = document.getElementById('roomIdInput').value;
@@ -149,24 +198,24 @@
             }
 
             try {
-                
+                // Get Camera/Mic
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('localVideo').srcObject = localStream;
 
-           
+                // Connect Socket
                 socket = io(SOCKET_URL);
                 setupSocketListeners();
 
-            
+                // UI Updates
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('appInterface').classList.remove('hidden');
                 document.getElementById('displayRoomId').innerText = roomId;
                 document.getElementById('displayUsername').innerText = username;
 
-              
+                // Start Frame Processing (Note: This now checks the toggle state inside)
                 startFrameProcessing();
 
-         
+                // Join
                 socket.emit('join-room', { roomId, userName: username });
 
             } catch (err) {
@@ -178,7 +227,7 @@
         function setupSocketListeners() {
             socket.on('connect', () => console.log("Connected to server:", socket.id));
 
-            
+            // WebRTC Signaling
             socket.on('user-joined', async (data) => {
                 console.log("User joined:", data.userId);
                 updateUserCount(data.roomUsers.length);
@@ -209,13 +258,13 @@
                     peerConnections[data.userId].close();
                     delete peerConnections[data.userId];
                 }
-              
+                // Remove video element
                 const videoEl = document.getElementById(`video-${data.userId}`);
                 if (videoEl) videoEl.parentElement.remove();
                 updateUserCount(document.getElementById('videoGrid').children.length); 
             });
 
-            
+            // Features
             socket.on('sign-detected', (data) => {
                 addSignToLog(data);
             });
@@ -225,22 +274,22 @@
             });
         }
 
-       
+        // --- WebRTC Logic ---
         async function createPeerConnection(userId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
             peerConnections[userId] = pc;
 
-            
+            // Add local tracks
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-            
+            // ICE Candidates
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
                     socket.emit('webrtc-ice-candidate', { targetId: userId, candidate: event.candidate });
                 }
             };
 
-            
+            // Handle Remote Stream
             pc.ontrack = (event) => {
                 const stream = event.streams[0];
                 if (!document.getElementById(`video-${userId}`)) {
@@ -248,7 +297,7 @@
                 }
             };
 
-            
+            // Create Offer
             if (isInitiator) {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -283,33 +332,36 @@
             document.getElementById('userCount').innerText = count || 1;
         }
 
-       
+        // --- UPDATED: Frame Processing ---
         function startFrameProcessing() {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const video = document.getElementById('localVideo');
 
             frameInterval = setInterval(() => {
-                if (!isVideoEnabled) return;
+                // CHECK TOGGLE STATE HERE
+                if (!isVideoEnabled || !isSignDetectionEnabled) return;
 
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
                 
-                
+                // Convert to base64
                 const frameData = canvas.toDataURL('image/jpeg', 0.7);
                 socket.emit('process-frame', {
                     frame: frameData,
                     roomId: roomId,
                     timestamp: Date.now()
                 });
-            }, 500);
+            }, 500); // 2 FPS
         }
 
         function addSignToLog(data) {
             const log = document.getElementById('signsLog');
-            const emptyMsg = log.querySelector('.text-center');
-            if (emptyMsg) emptyMsg.remove();
+            
+            // Remove the status message if it exists
+            const statusMsg = document.getElementById('signStatusMsg');
+            if (statusMsg) statusMsg.remove();
 
             const item = document.createElement('div');
             item.className = "bg-gray-700 rounded p-3 animate-pulse";
@@ -357,7 +409,7 @@
             log.scrollTop = log.scrollHeight;
         }
 
-     
+        // --- Controls ---
         function toggleVideo() {
             const videoTrack = localStream.getVideoTracks()[0];
             videoTrack.enabled = !videoTrack.enabled;
@@ -401,7 +453,7 @@
             location.reload(); 
         }
 
-      
+        // Send chat on Enter key
         document.getElementById('chatInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });

@@ -4,10 +4,10 @@ import numpy as np
 import csv
 import os
 
-cap = cv2.VideoCapture(1) 
+cap = cv2.VideoCapture(0) 
 detector = HandDetector(maxHands=2) 
 
-current_label = "No" 
+current_label = "Sunday" #isme photo ka label dalo
 file_path = "SignLanguageData_Dual.csv"
 
 def get_normalized_landmarks(hand):
