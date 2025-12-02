@@ -4,14 +4,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import pickle
 
-data = pd.read_csv('SignLanguageData.csv')
+data = pd.read_csv('SignLanguageData_Dual.csv')
 
 X = data.drop('label', axis=1) 
 y = data['label']              
 
-
 x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True, stratify=y)
-
 
 model = RandomForestClassifier()
 model.fit(x_train, y_train)

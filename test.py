@@ -4,49 +4,65 @@ import numpy as np
 import csv
 import os
 
-cap = cv2.VideoCapture(1)
-detector = HandDetector(maxHands=1)
+cap = cv2.VideoCapture(1) 
+detector = HandDetector(maxHands=2) 
 
-current_label = "Love you"
+current_label = "Hello" 
+file_path = "SignLanguageData_Dual.csv"
 
-file_path = "SignLanguageData.csv"
+def get_normalized_landmarks(hand):
+    lmList = hand['lmList']
+    x, y, w, h = hand['bbox']
+    normalized = []
+    for lm in lmList:
+        norm_x = (lm[0] - x) / w
+        norm_y = (lm[1] - y) / h
+        normalized.extend([norm_x, norm_y])
+    return normalized
 
 if not os.path.exists(file_path):
     with open(file_path, mode='w', newline='') as f:
         writer = csv.writer(f)
         
         headers = ["label"]
+
         for i in range(21):
-            headers.extend([f"x{i}", f"y{i}"])
+            headers.extend([f"h1_x{i}", f"h1_y{i}"])
+
+        for i in range(21):
+            headers.extend([f"h2_x{i}", f"h2_y{i}"])
+            
         writer.writerow(headers)
 
 print(f"Press 's' to save data for: {current_label}")
 
 while True:
     success, img = cap.read()
+    if not success:
+        break
     img = cv2.flip(img, 1)
     
     hands, img = detector.findHands(img, draw=True) 
 
     if hands:
-        lmList = hands[0]['lmList'] 
+        data_row = []
         
+        hand1 = hands[0]
+        data_row.extend(get_normalized_landmarks(hand1))
         
-        x, y, w, h = hands[0]['bbox']
-        
-        normalized_landmarks = []
-        for lm in lmList:
+        if len(hands) == 2:
+            hand2 = hands[1]
+            data_row.extend(get_normalized_landmarks(hand2))
+        else:
             
-            norm_x = (lm[0] - x) / w
-            norm_y = (lm[1] - y) / h
-            normalized_landmarks.extend([norm_x, norm_y])
+            data_row.extend([0] * 42)
 
         key = cv2.waitKey(1)
         if key == ord('s'):
             with open(file_path, mode='a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([current_label] + normalized_landmarks)
-            print(f"Data Saved for {current_label}")
+                writer.writerow([current_label] + data_row)
+            print(f"Data Saved for {current_label} (Hands detected: {len(hands)})")
 
     cv2.imshow("Image", img)
     if cv2.waitKey(1) == ord('q'):

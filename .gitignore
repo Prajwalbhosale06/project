@@ -8,3 +8,8 @@ __pycache__/
 
 
 .DS_Store
+
+echo "node_modules/" > .gitignore
+echo "keras_model.h5" >> .gitignore
+echo "__pycache__/" >> .gitignore
+echo ".DS_Store" >> .gitignore
