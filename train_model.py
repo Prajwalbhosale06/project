@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import pickle
 
-data = pd.read_csv('SignLanguageData_Dual.csv')
+data = pd.read_csv('jhatu.csv')
 
 X = data.drop('label', axis=1) 
 y = data['label']              

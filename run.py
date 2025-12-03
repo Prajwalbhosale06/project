@@ -12,7 +12,7 @@ except FileNotFoundError:
     print("Error: model.p not found. Make sure you ran train.py first.")
     exit()
 
-cap = cv2.VideoCapture(0) 
+cap = cv2.VideoCapture(1) 
 detector = HandDetector(maxHands=2) 
 
 def get_normalized_landmarks(hand):
