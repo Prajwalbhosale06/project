@@ -7,7 +7,7 @@ import os
 cap = cv2.VideoCapture(1) 
 detector = HandDetector(maxHands=2) 
 
-current_label = "You" #isme photo ka label dalo
+current_label = "Call" #isme photo ka label dalo
 file_path = "Dhruv.csv"
 
 def get_normalized_landmarks(hand):

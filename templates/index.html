@@ -2,82 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="autoplay" content="allowed">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Language Video Call</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
-        #localVideo {
-            transform: scaleX(-1);
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        body {
-            height: 100dvh; 
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        #localVideo { transform: scaleX(-1); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        body { height: 100dvh; }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
 
     <div id="loginScreen" class="fixed inset-0 bg-gradient-to-br from-blue-900 to-gray-900 flex items-center justify-center z-50 px-4">
-        <div class="bg-white text-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="text-center mb-8">
-                <div class="bg-blue-100 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="video" class="w-8 h-8 md:w-10 md:h-10 text-blue-600"></i>
-                </div>
-                <h1 class="text-2xl md:text-3xl font-bold mb-2">Join Call</h1>
-                <p class="text-gray-500 text-sm md:text-base">Real-time Sign Language Detection</p>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="Enter your name"
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Room ID</label>
-                    <input type="text" id="roomIdInput" placeholder="e.g. 1234"
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <button onclick="joinCall()"
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">
-                    <i data-lucide="phone"></i> Join Room
-                </button>
-            </div>
+        <div class="bg-white text-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <h1 class="text-3xl font-bold mb-6 text-center">Join Call</h1>
+            <input type="text" id="usernameInput" placeholder="Name" class="w-full px-4 py-3 border rounded-lg mb-4 text-black">
+            <input type="text" id="roomIdInput" placeholder="Room ID" class="w-full px-4 py-3 border rounded-lg mb-6 text-black">
+            <button onclick="joinCall()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg">Join Room</button>
         </div>
     </div>
 
     <div id="appInterface" class="hidden flex-1 flex flex-col h-full">
-        
         <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
             <div>
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    Room: <span id="displayRoomId" class="text-blue-400">---</span>
-                </h2>
+                <h2 class="text-xl font-bold">Room: <span id="displayRoomId" class="text-blue-400">---</span></h2>
                 <p id="displayUsername" class="text-sm text-gray-400">---</p>
             </div>
-
             <div class="flex items-center gap-4">
-                <div class="bg-gray-700 px-3 py-1 rounded-full flex items-center gap-2">
-                    <i data-lucide="users" class="w-4 h-4 text-gray-400"></i>
-                    <span id="userCount">1</span>
+                <div class="bg-gray-700 px-3 py-1 rounded-full flex gap-2">
+                    <i data-lucide="users" class="w-4 h-4"></i><span id="userCount">1</span>
                 </div>
-
                 <div class="flex items-center gap-2 bg-gray-700 px-3 py-1 rounded-full">
+                    <span class="text-xs text-gray-400">Translate to:</span>
                     <select id="languageSelect" class="bg-gray-800 text-sm rounded px-2 py-1 outline-none">
                         <option value="en">English</option>
                         <option value="hi">Hindi</option>
@@ -86,140 +44,74 @@
                         <option value="de">German</option>
                         <option value="ar">Arabic</option>
                     </select>
-                    <button id="toggleTranslationBtn"
-                            class="text-xs bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition">
-                        Translation OFF
-                    </button>
                 </div>
             </div>
         </div>
 
         <div class="flex-1 flex p-4 gap-4 overflow-hidden relative">
-            
             <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-fr relative" id="videoGrid">
-                
                 <div class="relative bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
                     <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
-                    <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm backdrop-blur-sm">You</div>
+                    <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm">You</div>
                 </div>
-
                 <div class="absolute bottom-6 left-0 right-0 z-20 flex justify-center pointer-events-none">
-                    <div id="subtitleContainer" class="hidden bg-black/70 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl max-w-2xl transition-all duration-300">
-                        <p id="liveSubtitlesOverlay" class="text-white text-xl md:text-2xl font-semibold tracking-wide text-center capitalize drop-shadow-lg">
-                        </p>
+                    <div id="subtitleContainer" class="hidden bg-black/70 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl max-w-2xl">
+                        <p id="liveSubtitlesOverlay" class="text-white text-xl font-semibold text-center"></p>
                     </div>
                 </div>
-
             </div>
 
             <div class="w-80 flex flex-col gap-4">
-                
                 <div class="bg-gray-800 rounded-xl p-4 flex flex-col border border-gray-700 h-1/3 relative shadow-lg">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-semibold flex items-center gap-2 text-blue-400">
-                            <i data-lucide="captions"></i> Sign Detection
-                        </h3>
-                        <div class="flex items-center gap-2">
-                            <button id="signToggleBtn" onclick="toggleSignDetection()"
-                                    class="w-9 h-5 bg-gray-600 rounded-full relative transition-colors duration-200 focus:outline-none">
-                                <div id="signToggleCircle"
-                                     class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform duration-200"></div>
-                            </button>
-                        </div>
+                        <h3 class="font-semibold text-blue-400">Sign Detection</h3>
+                        <button id="signToggleBtn" onclick="toggleSignDetection()" class="w-9 h-5 bg-gray-600 rounded-full relative transition-colors focus:outline-none">
+                            <div id="signToggleCircle" class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                        </button>
                     </div>
-                    
-                    <div id="signOutputBox" class="flex-1 bg-gray-900/50 rounded-lg p-3 text-white text-lg overflow-y-auto font-medium leading-relaxed border border-gray-700/50 break-words">
-                        <span class="text-gray-500 text-sm italic">Toggle on to start detecting...</span>
-                    </div>
-                    
-                    <p id="detectionStatus" class="text-[10px] text-gray-500 mt-2 text-right">Status: Paused</p>
+                    <div id="signOutputBox" class="flex-1 bg-gray-900/50 rounded-lg p-3 text-white text-lg overflow-y-auto"></div>
+                    <p id="detectionStatus" class="text-[10px] text-gray-500 mt-2 text-right">Paused</p>
                 </div>
 
                 <div class="bg-gray-800 rounded-xl p-4 flex-1 flex flex-col border border-gray-700 min-h-0">
-                    <h3 class="font-semibold mb-1 text-green-400 flex items-center gap-2">
-                        <i data-lucide="message-square" class="w-4 h-4"></i> Chat
-                    </h3>
-
-                    <div id="translationCaption" class="text-xs text-green-300 mb-2 h-6 overflow-hidden truncate">
-                    </div>
-
-                    <div id="chatLog" class="flex-1 overflow-y-auto space-y-2 mb-3 pr-2 scrollbar-hide text-sm">
-                    </div>
-                    
+                    <h3 class="font-semibold mb-1 text-green-400">Chat</h3>
+                    <div id="chatLog" class="flex-1 overflow-y-auto space-y-2 mb-3 pr-2 scrollbar-hide text-sm"></div>
                     <div class="flex gap-2">
-                        <input type="text" id="chatInput" placeholder="Type message..."
-                               class="flex-1 bg-gray-700 border-none rounded px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-                        <button onclick="sendMessage()"
-                                class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded transition flex items-center justify-center">
-                            <i data-lucide="send" class="w-4 h-4"></i>
-                        </button>
+                        <input type="text" id="chatInput" placeholder="Message..." class="flex-1 bg-gray-700 rounded px-3 py-2 text-white outline-none">
+                        <button onclick="sendMessage()" class="bg-blue-600 px-3 py-2 rounded"><i data-lucide="send" class="w-4 h-4"></i></button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="bg-gray-800 border-t border-gray-700 p-4 flex justify-center gap-4">
-            <button onclick="toggleVideo()" id="btnVideo"
-                    class="p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition">
-                <i data-lucide="video"></i>
-            </button>
-            <button onclick="toggleAudio()" id="btnAudio"
-                    class="p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition">
-                <i data-lucide="mic"></i>
-            </button>
-            <button onclick="leaveCall()"
-                    class="p-4 rounded-full bg-red-600 hover:bg-red-700 transition">
-                <i data-lucide="phone-off"></i>
-            </button>
+            <button onclick="toggleVideo()" id="btnVideo" class="p-4 rounded-full bg-gray-700"><i data-lucide="video"></i></button>
+            <button onclick="toggleAudio()" id="btnAudio" class="p-4 rounded-full bg-gray-700"><i data-lucide="mic"></i></button>
+            <button onclick="leaveCall()" class="p-4 rounded-full bg-red-600"><i data-lucide="phone-off"></i></button>
         </div>
     </div>
 
     <script>
         const SOCKET_URL = window.location.origin;          
-        let socket;
-        let localStream;
-        let username;
-        let roomId;
+        let socket, localStream, username, roomId;
         let peerConnections = {}; 
-        let isVideoEnabled = true;
-        let isAudioEnabled = true;
-        let frameInterval;
-
-        let translationEnabled = false;
-        let recognition = null;
-
-        let isSignDetectionEnabled = false;
-        
-        let sentenceBuffer = []; 
-        let subtitleClearTimer;  
-
-        const rtcConfig = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
-            ]
-        };
+        let isVideoEnabled = true, isAudioEnabled = true, isSignDetectionEnabled = false;
+        let sentenceBuffer = [], subtitleClearTimer;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         lucide.createIcons();
 
         async function joinCall() {
             username = document.getElementById('usernameInput').value;
             roomId = document.getElementById('roomIdInput').value;
-
-            if (!username || !roomId) {
-                alert("Please enter both Name and Room ID");
-                return;
-            }
+            if (!username || !roomId) return alert("Enter Name & Room ID");
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user" },
-                    audio: true
-                });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
                 document.getElementById('localVideo').srcObject = localStream;
-
                 socket = io(SOCKET_URL);
                 setupSocketListeners();
-
+                
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('appInterface').classList.remove('hidden');
                 document.getElementById('displayRoomId').innerText = roomId;
@@ -227,116 +119,128 @@
 
                 startFrameProcessing();
                 socket.emit('join-room', { roomId, userName: username });
-
-                if (!recognition) initSpeechRecognition();
-
-            } catch (err) {
-                console.error("Error accessing media:", err);
-                alert("Could not access camera/microphone.");
-            }
+            } catch (err) { alert("Camera access denied"); }
         }
 
         function setupSocketListeners() {
-            socket.on('connect', () => console.log("Connected to server:", socket.id));
-
             socket.on('user-joined', async (data) => {
-                updateUserCount(data.roomUsers.length);
+                document.getElementById('userCount').innerText = data.roomUsers.length;
                 await createPeerConnection(data.userId, true);
             });
-
+            
             socket.on('webrtc-offer', async (data) => {
+                // Now data.senderId is present because the backend injected it
                 const pc = await createPeerConnection(data.senderId, false);
                 await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 socket.emit('webrtc-answer', { targetId: data.senderId, answer });
             });
-
+            
             socket.on('webrtc-answer', async (data) => {
                 const pc = peerConnections[data.senderId];
                 if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
             });
-
+            
             socket.on('webrtc-ice-candidate', async (data) => {
                 const pc = peerConnections[data.senderId];
                 if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             });
-
+            
             socket.on('user-disconnected', (data) => {
-                if (peerConnections[data.userId]) {
-                    peerConnections[data.userId].close();
-                    delete peerConnections[data.userId];
-                }
+                if (peerConnections[data.userId]) { peerConnections[data.userId].close(); delete peerConnections[data.userId]; }
                 const videoEl = document.getElementById(`video-${data.userId}`);
                 if (videoEl) videoEl.parentElement.remove();
-                updateUserCount(document.getElementById('videoGrid').children.length);
             });
 
-            socket.on('sign-detected', (data) => {
-                if (!isSignDetectionEnabled) return; 
-                updateSubtitles(data);
+            socket.on('sign-detected', async (data) => {
+                const rawSign = data.sign;
+                if (!rawSign) return;
+
+                const myLang = document.getElementById('languageSelect').value;
+
+                if (sentenceBuffer.length > 0 && sentenceBuffer[sentenceBuffer.length - 1] === rawSign) return;
+
+                try {
+                    const res = await fetch('/translate-audio', {
+                        method: 'POST',
+                        body: JSON.stringify({ text: rawSign, language: myLang })
+                    });
+                    const result = await res.json();
+                    
+                    if (result.translated_text) {
+                        displaySubtitle(result.translated_text, data.userName);
+                        if (result.audio_base64) {
+                            new Audio(result.audio_base64).play().catch(e => console.log("Audio block:", e));
+                        }
+                        sentenceBuffer.push(rawSign);
+                        if (sentenceBuffer.length > 10) sentenceBuffer.shift();
+                    }
+                } catch (e) { console.error("Translation fetch failed", e); }
             });
 
             socket.on('receive-message', (data) => {
-                addMessageToChat(data);
+                const log = document.getElementById('chatLog');
+                const div = document.createElement('div');
+                div.className = `p-2 rounded mb-2 text-sm ${data.userId === socket.id ? 'bg-blue-600 ml-auto' : 'bg-gray-700'}`;
+                div.innerHTML = `<span class="text-xs opacity-75 block">${data.userName}</span>${data.message}`;
+                log.appendChild(div);
+                log.scrollTop = log.scrollHeight;
             });
         }
 
-        function updateSubtitles(data) {
-            const rawSign = (data.sign || "").trim();
-            if (!rawSign) return;
+        function displaySubtitle(text, user) {
+            const overlay = document.getElementById('liveSubtitlesOverlay');
+            const box = document.getElementById('signOutputBox');
+            const container = document.getElementById('subtitleContainer');
 
-            const overlayContainer = document.getElementById('subtitleContainer');
-            const overlayText = document.getElementById('liveSubtitlesOverlay');
-            const sideBox = document.getElementById('signOutputBox');
+            overlay.innerHTML = `<span class="text-blue-300 text-sm block">${user}:</span> ${text}`;
+            container.classList.remove('hidden');
 
-            if (sentenceBuffer.length > 0) {
-                const lastWord = sentenceBuffer[sentenceBuffer.length - 1];
-                if (lastWord.toLowerCase() === rawSign.toLowerCase()) {
-                    return; 
-                }
-            }
-
-            sentenceBuffer.push(rawSign);
-            if (sentenceBuffer.length > 15) { 
-                sentenceBuffer.shift();
-            }
-
-            const sentenceString = sentenceBuffer.join(" ");
-
-            overlayText.innerText = sentenceString;
-            overlayContainer.classList.remove('hidden');
-
-            sideBox.innerText = sentenceString;
-            if(sideBox.querySelector('span')) sideBox.innerHTML = sentenceString;
-            sideBox.scrollTop = sideBox.scrollHeight;
+            const div = document.createElement('div');
+            div.className = "mb-1 text-sm";
+            div.innerHTML = `<span class="text-blue-400 font-bold">${user}:</span> ${text}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
 
             clearTimeout(subtitleClearTimer);
-            subtitleClearTimer = setTimeout(() => {
-                sentenceBuffer = [];
-                overlayContainer.classList.add('hidden');
-                sideBox.innerHTML = '<span class="text-gray-500 text-sm italic">Waiting for signs...</span>';
-            }, 60000); 
+            subtitleClearTimer = setTimeout(() => container.classList.add('hidden'), 4000);
+        }
+
+        function startFrameProcessing() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const video = document.getElementById('localVideo');
+
+            setInterval(() => {
+                if (!isSignDetectionEnabled || video.videoWidth === 0) return;
+                canvas.width = video.videoWidth; 
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                socket.emit('process-frame', {
+                    frame: canvas.toDataURL('image/jpeg', 0.5),
+                    roomId: roomId,
+                    userName: username,
+                    timestamp: Date.now()
+                });
+            }, 500); 
         }
 
         async function createPeerConnection(userId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
             peerConnections[userId] = pc;
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('webrtc-ice-candidate', { targetId: userId, candidate: event.candidate });
-                }
-            };
-
-            pc.ontrack = (event) => {
-                const stream = event.streams[0];
+            pc.onicecandidate = e => { if (e.candidate) socket.emit('webrtc-ice-candidate', { targetId: userId, candidate: e.candidate }); };
+            pc.ontrack = e => { 
                 if (!document.getElementById(`video-${userId}`)) {
-                    addRemoteVideoElement(userId, stream);
+                    const div = document.createElement('div');
+                    div.className = "relative bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700";
+                    div.innerHTML = `<video id="video-${userId}" autoplay playsinline class="w-full h-full object-cover"></video><div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm">User</div>`;
+                    document.getElementById('videoGrid').insertBefore(div, document.getElementById('subtitleContainer').parentElement);
+                    div.querySelector('video').srcObject = e.streams[0];
                 }
             };
-
             if (isInitiator) {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -345,248 +249,40 @@
             return pc;
         }
 
-        function addRemoteVideoElement(userId, stream) {
-            const container = document.createElement('div');
-            container.className = "relative bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700";
-            
-            const video = document.createElement('video');
-            video.id = `video-${userId}`;
-            video.srcObject = stream;
-            video.autoplay = true;
-            video.playsInline = true;
-            video.className = "w-full h-full object-cover";
-
-            const label = document.createElement('div');
-            label.className = "absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm backdrop-blur-sm";
-            label.innerText = `User ${userId.slice(0,4)}`;
-
-            container.appendChild(video);
-            container.appendChild(label);
-            
-            const grid = document.getElementById('videoGrid');
-            const subtitleContainer = document.getElementById('subtitleContainer').parentElement;
-            grid.insertBefore(container, subtitleContainer);
-            
-            updateUserCount(Object.keys(peerConnections).length + 1);
-        }
-
-        function updateUserCount(count) {
-            document.getElementById('userCount').innerText = count || 1;
-        }
-
-        function startFrameProcessing() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const video = document.getElementById('localVideo');
-
-            frameInterval = setInterval(() => {
-                if (!isVideoEnabled || !isSignDetectionEnabled) return;
-                if (video.videoWidth === 0) return;
-
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-                
-                const frameData = canvas.toDataURL('image/jpeg', 0.7);
-                socket.emit('process-frame', {
-                    frame: frameData,
-                    roomId: roomId,
-                    timestamp: Date.now()
-                });
-            }, 500);
-        }
-
         function toggleSignDetection() {
             isSignDetectionEnabled = !isSignDetectionEnabled;
-            
             const btn = document.getElementById('signToggleBtn');
             const circle = document.getElementById('signToggleCircle');
-            const statusText = document.getElementById('detectionStatus');
-
-            if (isSignDetectionEnabled) {
-                btn.classList.replace('bg-gray-600', 'bg-green-500');
-                circle.classList.add('translate-x-4');
-                statusText.innerText = "Status: Active";
-                statusText.classList.add('text-green-400');
-            } else {
-                btn.classList.replace('bg-green-500', 'bg-gray-600');
-                circle.classList.remove('translate-x-4');
-                statusText.innerText = "Status: Paused";
-                statusText.classList.remove('text-green-400');
-            }
+            document.getElementById('detectionStatus').innerText = isSignDetectionEnabled ? "Active" : "Paused";
+            if(isSignDetectionEnabled) { btn.classList.replace('bg-gray-600','bg-green-500'); circle.classList.add('translate-x-4'); }
+            else { btn.classList.replace('bg-green-500','bg-gray-600'); circle.classList.remove('translate-x-4'); }
         }
 
         function sendMessage() {
             const input = document.getElementById('chatInput');
-            const msg = input.value.trim();
-            if (!msg) return;
-
-            socket.emit('send-message', {
-                roomId,
-                userName: username,
-                message: msg,
-                timestamp: Date.now()
-            });
+            if(!input.value.trim()) return;
+            socket.emit('send-message', { roomId, userName: username, message: input.value });
             input.value = '';
         }
 
-        function addMessageToChat(data) {
-            const log = document.getElementById('chatLog');
-            const item = document.createElement('div');
-            const isMe = data.userId === socket.id;
-            
-            item.className = `p-2 rounded max-w-[85%] mb-2 break-words ${
-                isMe ? 'bg-blue-600 ml-auto' : 'bg-gray-700'
-            }`;
-            item.innerHTML = `
-                <div class="text-[10px] ${isMe ? 'text-blue-200' : 'text-gray-400'} mb-0.5">
-                    ${data.userName}
-                </div>
-                <div class="text-white text-sm">${data.message}</div>
-            `;
-            log.appendChild(item);
-            log.scrollTop = log.scrollHeight;
-        }
-
         function toggleVideo() {
-            if (!localStream) return;
-            const videoTrack = localStream.getVideoTracks()[0];
-            videoTrack.enabled = !videoTrack.enabled;
-            isVideoEnabled = videoTrack.enabled;
-            
-            const btn = document.getElementById('btnVideo');
-            if (isVideoEnabled) {
-                btn.classList.replace('bg-red-600', 'bg-gray-700');
-                btn.classList.replace('hover:bg-red-700', 'hover:bg-gray-600');
-                btn.innerHTML = `<i data-lucide="video"></i>`;
-            } else {
-                btn.classList.replace('bg-gray-700', 'bg-red-600');
-                btn.classList.replace('hover:bg-gray-600', 'hover:bg-red-700');
-                btn.innerHTML = `<i data-lucide="video-off"></i>`;
-            }
+            const track = localStream.getVideoTracks()[0];
+            track.enabled = !track.enabled;
+            document.getElementById('btnVideo').innerHTML = track.enabled ? `<i data-lucide="video"></i>` : `<i data-lucide="video-off"></i>`;
+            document.getElementById('btnVideo').classList.toggle('bg-red-600');
             lucide.createIcons();
         }
 
         function toggleAudio() {
-            if (!localStream) return;
-            const audioTrack = localStream.getAudioTracks()[0];
-            audioTrack.enabled = !audioTrack.enabled;
-            isAudioEnabled = audioTrack.enabled;
-            
-            const btn = document.getElementById('btnAudio');
-            if (audioTrack.enabled) {
-                btn.classList.replace('bg-red-600', 'bg-gray-700');
-                btn.classList.replace('hover:bg-red-700', 'hover:bg-gray-600');
-                btn.innerHTML = `<i data-lucide="mic"></i>`;
-            } else {
-                btn.classList.replace('bg-gray-700', 'bg-red-600');
-                btn.classList.replace('hover:bg-gray-600', 'hover:bg-red-700');
-                btn.innerHTML = `<i data-lucide="mic-off"></i>`;
-            }
+            const track = localStream.getAudioTracks()[0];
+            track.enabled = !track.enabled;
+            document.getElementById('btnAudio').innerHTML = track.enabled ? `<i data-lucide="mic"></i>` : `<i data-lucide="mic-off"></i>`;
+            document.getElementById('btnAudio').classList.toggle('bg-red-600');
             lucide.createIcons();
         }
 
-        function leaveCall() {
-            if (localStream) localStream.getTracks().forEach(track => track.stop());
-            if (socket) socket.disconnect();
-            location.reload();
-        }
-
-        document.getElementById('chatInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-
-        function initSpeechRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                console.warn("SpeechRecognition not supported in this browser.");
-                return;
-            }
-
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US'; 
-
-            recognition.onresult = async (event) => {
-                if (!translationEnabled) return;
-
-                const lastResult = event.results[event.results.length - 1];
-                const text = lastResult[0].transcript.trim();
-                if (!text) return;
-
-                console.log("Heard:", text);
-                const translated = await sendForTranslation(text);
-
-                const captionEl = document.getElementById('translationCaption');
-                if (translated && captionEl) {
-                    captionEl.textContent = translated;
-                }
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error:", event.error);
-            };
-
-            recognition.onend = () => {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.warn("Speech recognition restart issue:", e);
-                }
-            };
-
-            try {
-                recognition.start();
-            } catch (e) {
-                console.warn("Speech recognition start issue:", e);
-            }
-        }
-
-        async function sendForTranslation(text) {
-            const langSelect = document.getElementById('languageSelect');
-            const targetLang = langSelect ? langSelect.value : 'en';
-
-            try {
-                const res = await fetch('/translate-audio', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ text: text, language: targetLang })
-                });
-
-                const data = await res.json();
-                
-                if (data.error) return null;
-
-                if (data.audio_base64) {
-                    let audio = new Audio();
-                    audio.src = data.audio_base64;
-                    audio.autoplay = true;
-                    audio.play().catch(err => {
-                         document.body.addEventListener("click", () => audio.play(), { once: true });
-                    });
-                }
-                return data.translated_text;
-
-            } catch (err) {
-                return null;
-            }
-        }
-
-        const toggleBtn = document.getElementById('toggleTranslationBtn');
-        toggleBtn.addEventListener('click', () => {
-            translationEnabled = !translationEnabled;
-
-            if (translationEnabled) {
-                toggleBtn.textContent = "Translation ON";
-                toggleBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                toggleBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-            } else {
-                toggleBtn.textContent = "Translation OFF";
-                toggleBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
-                toggleBtn.classList.add('bg-red-600', 'hover:bg-red-700');
-            }
-        });
+        function leaveCall() { location.reload(); }
+        document.getElementById('chatInput').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
     </script>
 </body>
 </html>
