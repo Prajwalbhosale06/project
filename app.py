@@ -8,6 +8,11 @@ import base64
 from cvzone.HandTrackingModule import HandDetector
 import os
 
+# 🔽 TRANSLATION IMPORTS
+from googletrans import Translator
+from gtts import gTTS
+import io
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this'
 CORS(app)
@@ -23,6 +28,9 @@ except FileNotFoundError:
     model = None
 
 detector = HandDetector(maxHands=2)
+translator = Translator()   # translator instance
+
+# ----------------- SIGN DETECTION HELPERS -----------------
 
 def get_normalized_landmarks(hand):
     lmList = hand['lmList']
@@ -38,7 +46,6 @@ def process_frame_for_sign_detection(frame_data):
     if model is None:
         return None
     try:
-
         img_bytes = base64.b64decode(frame_data.split(',')[1])
         nparr = np.frombuffer(img_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -57,6 +64,7 @@ def process_frame_for_sign_detection(frame_data):
                 hand2 = hands[1]
                 data_aux.extend(get_normalized_landmarks(hand2))
             else:
+                # pad for second hand (21 points * 2 coords = 42)
                 data_aux.extend([0] * 42) 
             
             prediction = model.predict([data_aux])
@@ -76,16 +84,69 @@ def process_frame_for_sign_detection(frame_data):
 
 rooms = {}
 
+# ----------------- ROUTES -----------------
 
 @app.route('/')
 def index():
-    
+    # index.html tumhari templates folder me hona chahiye
     return render_template('index.html')
 
 @app.route('/health')
 def health():
     return jsonify({"status": "healthy", "model_loaded": model is not None})
 
+# 🔽 UPDATED & ROBUST AUDIO TRANSLATION ENDPOINT
+@app.route('/translate-audio', methods=['POST'])
+def translate_audio():
+    try:
+        data = request.get_json(force=True) or {}
+        text = data.get("text")
+        target_lang = data.get("language", "en")  # default English
+
+        print("=== /translate-audio called ===")
+        print("Raw data from client:", data)
+
+        if not text:
+            print("No text received from client")
+            return jsonify({"error": "No text received"}), 400
+
+        print(f"Requested translation: '{text}' -> '{target_lang}'")
+
+        # 1️⃣ Try translation (googletrans)
+        try:
+            result = translator.translate(text, dest=target_lang)
+            translated_text = result.text
+            print("googletrans translated text:", translated_text)
+        except Exception as e:
+            print("googletrans FAILED, using original text. Error:", e)
+            # fallback: original text
+            translated_text = text
+
+        # 2️⃣ Try TTS (gTTS)
+        audio_data_url = None
+        try:
+            tts = gTTS(translated_text, lang=target_lang)
+            audio_bytes = io.BytesIO()
+            tts.write_to_fp(audio_bytes)
+            audio_bytes.seek(0)
+
+            audio_b64 = base64.b64encode(audio_bytes.read()).decode("utf-8")
+            audio_data_url = f"data:audio/mp3;base64,{audio_b64}"
+            print("gTTS audio generated, base64 length:", len(audio_b64))
+        except Exception as e:
+            print("gTTS FAILED, sending text only. Error:", e)
+            # audio_data_url remains None
+
+        return jsonify({
+            "translated_text": translated_text,
+            "audio_base64": audio_data_url
+        })
+
+    except Exception as e:
+        print("Translation error (outer exception):", e)
+        return jsonify({"error": str(e)}), 500
+
+# ----------------- SOCKET.IO EVENTS -----------------
 
 @socketio.on('connect')
 def handle_connect():
@@ -188,8 +249,9 @@ def handle_send_message(data):
             'timestamp': data.get('timestamp')
         }, room=room_id)
 
-if __name__ == '__main__':
+# ----------------- MAIN -----------------
 
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     print(f"Starting server on port {port}...")
     socketio.run(app, host='0.0.0.0', port=port, debug=True)

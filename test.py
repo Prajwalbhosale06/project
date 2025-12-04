@@ -7,8 +7,8 @@ import os
 cap = cv2.VideoCapture(1) 
 detector = HandDetector(maxHands=2) 
 
-current_label = "Good Morning" #isme photo ka label dalo
-file_path = "jhatu.csv"
+current_label = "You" #isme photo ka label dalo
+file_path = "Dhruv.csv"
 
 def get_normalized_landmarks(hand):
     lmList = hand['lmList']
@@ -40,7 +40,6 @@ while True:
     success, img = cap.read()
     if not success:
         break
-    img = cv2.flip(img, 1)
     
     hands, img = detector.findHands(img, draw=True) 
 
