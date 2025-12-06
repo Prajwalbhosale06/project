@@ -1,82 +1,80 @@
 import cv2
-import pickle
 import numpy as np
-from cvzone.HandTrackingModule import HandDetector
+import os
+import mediapipe as mp
+from tensorflow.keras.models import load_model
 
-print("Loading model...")
-try:
-    with open('model.p', 'rb') as f:
-        model = pickle.load(f)
-    print("Model loaded successfully!")
-except FileNotFoundError:
-    print("Error: model.p not found. Make sure you ran train.py first.")
-    exit()
+# 1. Configuration
+actions = np.array(['Hello', 'NO']) 
 
-cap = cv2.VideoCapture(0) 
-detector = HandDetector(maxHands=2) 
+# 2. Load the Model
+model = load_model('action.h5')
 
-def get_normalized_landmarks(hand):
-    lmList = hand['lmList']
-    x, y, w, h = hand['bbox']
-    normalized = []
-    for lm in lmList:
+# 3. Setup MediaPipe
+mp_holistic = mp.solutions.holistic
+mp_drawing = mp.solutions.drawing_utils
+
+def extract_keypoints(results):
+    # This must match the shape used in training (258 points)
+    pose = np.array([[res.x, res.y, res.z, res.visibility] for res in results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(33*4)
+    lh = np.array([[res.x, res.y, res.z] for res in results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21*3)
+    rh = np.array([[res.x, res.y, res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3)
+    return np.concatenate([pose, lh, rh])
+
+# 4. Real-time Prediction Loop
+sequence = []
+sentence = []
+threshold = 0.7 # Confidence threshold (70%)
+
+cap = cv2.VideoCapture(1)
+with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret: break
+
+        # Process Frame
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        results = holistic.process(image)
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         
-        norm_x = (lm[0] - x) / w
-        norm_y = (lm[1] - y) / h
-        normalized.extend([norm_x, norm_y])
-    return normalized
-
-print("Starting camera...")
-
-while True:
-    success, img = cap.read()
-    if not success:
-        break
+        # Draw Landmarks
+        mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+        mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
         
-    img = cv2.flip(img, 1) 
-    imgOutput = img.copy()
-    
-    hands, img = detector.findHands(img, draw=True)
-
-    if hands:
-        data_aux = []
-        x_avg = 0
-        y_avg = 0
+        # Prediction Logic
+        keypoints = extract_keypoints(results)
+        sequence.append(keypoints)
+        sequence = sequence[-30:] # Keep only the last 30 frames
         
-        hand1 = hands[0]
-        data_aux.extend(get_normalized_landmarks(hand1))
-        
-        x1, y1, w1, h1 = hand1['bbox']
-        x_avg = x1
-        y_avg = y1
-
-        if len(hands) == 2:
-            hand2 = hands[1]
-            data_aux.extend(get_normalized_landmarks(hand2))
-        else:
+        if len(sequence) == 30:
+            res = model.predict(np.expand_dims(sequence, axis=0))[0]
             
-            data_aux.extend([0] * 42)
-
-        try:
-            prediction = model.predict([data_aux])
-            class_name = prediction[0]
+            # Get the label with highest probability
+            predicted_action = actions[np.argmax(res)]
+            confidence = res[np.argmax(res)]
             
-            probabilities = model.predict_proba([data_aux])
-            confidence = np.max(probabilities)
+            # Visualization Logic
+            if confidence > threshold:
+                cv2.putText(image, f'{predicted_action} ({confidence:.2f})', (10, 40), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
+                # Simple sentence builder
+                if len(sentence) > 0:
+                    if predicted_action != sentence[-1]:
+                        sentence.append(predicted_action)
+                else:
+                    sentence.append(predicted_action)
 
-            if confidence > 0.7:
-                cv2.rectangle(imgOutput, (x_avg, y_avg - 50), (x_avg + 150, y_avg), (255, 0, 255), cv2.FILLED)
-                cv2.putText(imgOutput, f'{class_name} {int(confidence*100)}%', (x_avg + 5, y_avg - 10), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            if len(sentence) > 5:
+                sentence = sentence[-5:]
+
+        # Show to screen
+        cv2.imshow('OpenCV Feed', image)
+
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
             
-        except Exception as e:
-            print(f"Prediction Error: {e}")
-            pass
-
-    cv2.imshow("Sign Language Detector", imgOutput)
-    
-    if cv2.waitKey(1) == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()

@@ -1,71 +1,83 @@
 import cv2
-from cvzone.HandTrackingModule import HandDetector
 import numpy as np
-import csv
 import os
+import mediapipe as mp
 
-cap = cv2.VideoCapture(1) 
-detector = HandDetector(maxHands=2) 
+# --- CONFIGURATION ---
+DATA_PATH = os.path.join('MP_Data') 
+# ADDED 'Idle' class for silence/nothing
+actions = np.array(['Hello', 'NO']) 
+no_sequences = 30 
+sequence_length = 30
 
-current_label = "Flower" #isme photo ka label dalo
-file_path = "new.csv"
+for action in actions: 
+    os.makedirs(os.path.join(DATA_PATH, action), exist_ok=True)
 
-def get_normalized_landmarks(hand):
-    lmList = hand['lmList']
-    x, y, w, h = hand['bbox']
-    normalized = []
-    for lm in lmList:
-        norm_x = (lm[0] - x) / w
-        norm_y = (lm[1] - y) / h
-        normalized.extend([norm_x, norm_y])
-    return normalized
+mp_holistic = mp.solutions.holistic 
+mp_drawing = mp.solutions.drawing_utils
 
-if not os.path.exists(file_path):
-    with open(file_path, mode='w', newline='') as f:
-        writer = csv.writer(f)
+def extract_keypoints(results):
+    """
+    Extracts coordinates relative to the wrist to make the model
+    independent of your position in the room.
+    """
+    # 1. Pose (Keep raw for now as it anchors the body)
+    if results.pose_landmarks:
+        pose = np.array([[res.x, res.y, res.z, res.visibility] for res in results.pose_landmarks.landmark]).flatten()
+    else:
+        pose = np.zeros(33*4)
         
-        headers = ["label"]
+    # 2. Left Hand (Relative to Wrist)
+    if results.left_hand_landmarks:
+        wrist = results.left_hand_landmarks.landmark[0]
+        lh = np.array([[res.x - wrist.x, res.y - wrist.y, res.z - wrist.z] for res in results.left_hand_landmarks.landmark]).flatten()
+    else:
+        lh = np.zeros(21*3)
 
-        for i in range(21):
-            headers.extend([f"h1_x{i}", f"h1_y{i}"])
+    # 3. Right Hand (Relative to Wrist)
+    if results.right_hand_landmarks:
+        wrist = results.right_hand_landmarks.landmark[0]
+        rh = np.array([[res.x - wrist.x, res.y - wrist.y, res.z - wrist.z] for res in results.right_hand_landmarks.landmark]).flatten()
+    else:
+        rh = np.zeros(21*3)
+        
+    return np.concatenate([pose, lh, rh])
 
-        for i in range(21):
-            headers.extend([f"h2_x{i}", f"h2_y{i}"])
+cap = cv2.VideoCapture(1)
+with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+    for action in actions:
+        for sequence in range(no_sequences):
+            window = [] 
+            for frame_num in range(sequence_length):
+                ret, frame = cap.read()
+                if not ret: break
+
+                image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image.flags.writeable = False
+                results = holistic.process(image)
+                image.flags.writeable = True
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                
+                mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+                mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+                
+                if frame_num == 0: 
+                    cv2.putText(image, 'STARTING COLLECTION', (120,200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255, 0), 4, cv2.LINE_AA)
+                    cv2.putText(image, 'Collecting {} #{}'.format(action, sequence), (15,12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+                    cv2.imshow('OpenCV Feed', image)
+                    cv2.waitKey(2000) 
+                else: 
+                    cv2.putText(image, 'Collecting {} #{}'.format(action, sequence), (15,12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+                    cv2.imshow('OpenCV Feed', image)
+                
+                keypoints = extract_keypoints(results)
+                window.append(keypoints)
+                if cv2.waitKey(10) & 0xFF == ord('q'): break
             
-        writer.writerow(headers)
+            # SAVE ONLY IF VALID (30 frames)
+            if len(window) == 30:
+                npy_path = os.path.join(DATA_PATH, action, str(sequence))
+                np.save(npy_path, np.array(window))
 
-print(f"Press 's' to save data for: {current_label}")
-
-while True:
-    success, img = cap.read()
-    if not success:
-        break
-    
-    hands, img = detector.findHands(img, draw=True) 
-
-    if hands:
-        data_row = []
-        
-        hand1 = hands[0]
-        data_row.extend(get_normalized_landmarks(hand1))
-        
-        if len(hands) == 2:
-            hand2 = hands[1]
-            data_row.extend(get_normalized_landmarks(hand2))
-        else:
-            
-            data_row.extend([0] * 42)
-
-        key = cv2.waitKey(1)
-        if key == ord('s'):
-            with open(file_path, mode='a', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([current_label] + data_row)
-            print(f"Data Saved for {current_label} (Hands detected: {len(hands)})")
-
-    cv2.imshow("Image", img)
-    if cv2.waitKey(1) == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()

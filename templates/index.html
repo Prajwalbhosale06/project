@@ -11,8 +11,11 @@
         #localVideo { transform: scaleX(-1); }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         body { height: 100dvh; }
-        /* Smooth fade for the overlay */
         #subtitleContainer { transition: opacity 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .pulse { animation: pulse 1.5s ease-in-out infinite; }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
@@ -20,25 +23,25 @@
     <div id="loginScreen" class="fixed inset-0 bg-gradient-to-br from-blue-900 to-gray-900 flex items-center justify-center z-50 px-4">
         <div class="bg-white text-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
             <h1 class="text-3xl font-bold mb-6 text-center">Join Call</h1>
-            <input type="text" id="usernameInput" placeholder="Name" class="w-full px-4 py-3 border rounded-lg mb-4 text-black">
-            <input type="text" id="roomIdInput" placeholder="Room ID" class="w-full px-4 py-3 border rounded-lg mb-6 text-black">
-            <button onclick="joinCall()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg">Join Room</button>
+            <input type="text" id="usernameInput" placeholder="Name" class="w-full px-4 py-3 border rounded-lg mb-4 text-black focus:border-blue-500 outline-none">
+            <input type="text" id="roomIdInput" placeholder="Room ID" class="w-full px-4 py-3 border rounded-lg mb-6 text-black focus:border-blue-500 outline-none">
+            <button onclick="joinCall()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition transform active:scale-95">Join Room</button>
         </div>
     </div>
 
     <div id="appInterface" class="hidden flex-1 flex flex-col h-full">
-        <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
+        <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shadow-md z-10">
             <div>
                 <h2 class="text-xl font-bold">Room: <span id="displayRoomId" class="text-blue-400">---</span></h2>
                 <p id="displayUsername" class="text-sm text-gray-400">---</p>
             </div>
             <div class="flex items-center gap-4">
-                <div class="bg-gray-700 px-3 py-1 rounded-full flex gap-2">
+                <div class="bg-gray-700 px-3 py-1 rounded-full flex gap-2 items-center text-sm">
                     <i data-lucide="users" class="w-4 h-4"></i><span id="userCount">1</span>
                 </div>
                 <div class="flex items-center gap-2 bg-gray-700 px-3 py-1 rounded-full">
-                    <span class="text-xs text-gray-400">Translate to:</span>
-                    <select id="languageSelect" class="bg-gray-800 text-sm rounded px-2 py-1 outline-none">
+                    <span class="text-xs text-gray-400 uppercase tracking-wider">Translate:</span>
+                    <select id="languageSelect" class="bg-gray-800 text-sm rounded px-2 py-1 outline-none text-white border-none cursor-pointer hover:text-blue-400 transition">
                         <option value="en">English</option>
                         <option value="hi">Hindi</option>
                         <option value="fr">French</option>
@@ -55,12 +58,16 @@
             <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-fr relative" id="videoGrid">
                 <div class="relative bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
                     <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
-                    <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm">You</div>
+                    <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm backdrop-blur-sm border border-white/10">You</div>
+                    <!-- Processing Indicator -->
+                    <div id="processingIndicator" class="hidden absolute top-3 right-3 bg-green-500/80 px-2 py-1 rounded text-xs backdrop-blur-sm border border-white/20 pulse">
+                        Processing...
+                    </div>
                 </div>
 
                 <div class="absolute bottom-6 left-0 right-0 z-20 flex justify-center pointer-events-none">
-                    <div id="subtitleContainer" class="hidden bg-black/70 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl max-w-2xl transition-opacity duration-300">
-                        <p id="liveSubtitlesOverlay" class="text-white text-xl font-semibold text-center"></p>
+                    <div id="subtitleContainer" class="hidden bg-black/80 backdrop-blur-md px-6 py-4 rounded-2xl shadow-2xl max-w-2xl transition-opacity duration-300 border border-white/10">
+                        <p id="liveSubtitlesOverlay" class="text-white text-xl font-medium text-center tracking-wide"></p>
                     </div>
                 </div>
             </div>
@@ -69,31 +76,43 @@
                 
                 <div class="bg-gray-800 rounded-xl p-4 flex flex-col border border-gray-700 h-1/3 relative shadow-lg">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-semibold text-blue-400">Sign Detection</h3>
-                        <button id="signToggleBtn" onclick="toggleSignDetection()" class="w-9 h-5 bg-gray-600 rounded-full relative transition-colors focus:outline-none">
-                            <div id="signToggleCircle" class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
+                        <h3 class="font-semibold text-blue-400 flex items-center gap-2">
+                            <i data-lucide="hand-metal" class="w-4 h-4"></i> Sign Detection
+                        </h3>
+                        <button id="signToggleBtn" onclick="toggleSignDetection()" class="w-10 h-6 bg-gray-600 rounded-full relative transition-colors focus:outline-none cursor-pointer">
+                            <div id="signToggleCircle" class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform shadow-sm"></div>
                         </button>
                     </div>
-                    <div id="signOutputBox" class="flex-1 bg-gray-900/50 rounded-lg p-3 text-white text-lg overflow-y-auto">
-                        </div>
-                    <p id="detectionStatus" class="text-[10px] text-gray-500 mt-2 text-right">Paused</p>
+                    <div id="signOutputBox" class="flex-1 bg-gray-900/50 rounded-lg p-3 text-white text-lg overflow-y-auto scrollbar-hide border border-gray-700/50">
+                    </div>
+                    <p id="detectionStatus" class="text-[10px] text-gray-500 mt-2 text-right font-mono uppercase">Paused</p>
                 </div>
 
-                <div class="bg-gray-800 rounded-xl p-4 flex-1 flex flex-col border border-gray-700 min-h-0">
-                    <h3 class="font-semibold mb-1 text-green-400">Chat</h3>
+                <div class="bg-gray-800 rounded-xl p-4 flex-1 flex flex-col border border-gray-700 min-h-0 shadow-lg">
+                    <h3 class="font-semibold mb-3 text-green-400 flex items-center gap-2">
+                        <i data-lucide="message-square" class="w-4 h-4"></i> Chat
+                    </h3>
                     <div id="chatLog" class="flex-1 overflow-y-auto space-y-2 mb-3 pr-2 scrollbar-hide text-sm"></div>
                     <div class="flex gap-2">
-                        <input type="text" id="chatInput" placeholder="Message..." class="flex-1 bg-gray-700 rounded px-3 py-2 text-white outline-none">
-                        <button onclick="sendMessage()" class="bg-blue-600 px-3 py-2 rounded"><i data-lucide="send" class="w-4 h-4"></i></button>
+                        <input type="text" id="chatInput" placeholder="Type a message..." class="flex-1 bg-gray-700 rounded px-3 py-2 text-white outline-none border border-gray-600 focus:border-blue-500 transition placeholder-gray-400">
+                        <button onclick="sendMessage()" class="bg-blue-600 px-3 py-2 rounded hover:bg-blue-700 transition shadow-sm"><i data-lucide="send" class="w-4 h-4"></i></button>
                     </div>
+                </div>
+
+                <!-- Debug Console -->
+                <div class="bg-gray-800 rounded-xl p-3 border border-gray-700 shadow-lg">
+                    <h3 class="font-semibold mb-2 text-yellow-400 flex items-center gap-2 text-sm">
+                        <i data-lucide="bug" class="w-3 h-3"></i> Debug Log
+                    </h3>
+                    <div id="debugLog" class="bg-gray-900/50 rounded p-2 text-xs text-gray-400 h-24 overflow-y-auto scrollbar-hide font-mono"></div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-gray-800 border-t border-gray-700 p-4 flex justify-center gap-4">
-            <button onclick="toggleVideo()" id="btnVideo" class="p-4 rounded-full bg-gray-700"><i data-lucide="video"></i></button>
-            <button onclick="toggleAudio()" id="btnAudio" class="p-4 rounded-full bg-gray-700"><i data-lucide="mic"></i></button>
-            <button onclick="leaveCall()" class="p-4 rounded-full bg-red-600"><i data-lucide="phone-off"></i></button>
+        <div class="bg-gray-800 border-t border-gray-700 p-4 flex justify-center gap-4 shadow-lg z-10">
+            <button onclick="toggleVideo()" id="btnVideo" class="p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition shadow-lg ring-1 ring-white/5"><i data-lucide="video"></i></button>
+            <button onclick="toggleAudio()" id="btnAudio" class="p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition shadow-lg ring-1 ring-white/5"><i data-lucide="mic"></i></button>
+            <button onclick="leaveCall()" class="p-4 rounded-full bg-red-600 hover:bg-red-700 transition shadow-lg ring-1 ring-white/5"><i data-lucide="phone-off"></i></button>
         </div>
     </div>
 
@@ -103,24 +122,51 @@
         let peerConnections = {}; 
         let isVideoEnabled = true, isAudioEnabled = true, isSignDetectionEnabled = false;
         
-        // --- NEW VARIABLES FOR LOGIC ---
-        let lastSignMap = {};  // Stores the last sign for EACH user { userId: "Hello" }
-        let lastSpeakerId = null; // Stores who was the last person to add to the text box
+        let lastSignMap = {};
+        let lastSpeakerId = null;
         let subtitleClearTimer;
-        // -------------------------------
+        let framesSent = 0;
+        let signsDetected = 0;
 
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         lucide.createIcons();
 
+        // ===== DEBUG LOGGING =====
+        function debugLog(message, type = 'info') {
+            const log = document.getElementById('debugLog');
+            const time = new Date().toLocaleTimeString();
+            const color = {
+                'info': 'text-gray-400',
+                'success': 'text-green-400',
+                'error': 'text-red-400',
+                'warning': 'text-yellow-400'
+            }[type];
+            
+            const div = document.createElement('div');
+            div.className = color;
+            div.textContent = `[${time}] ${message}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
         async function joinCall() {
             username = document.getElementById('usernameInput').value;
             roomId = document.getElementById('roomIdInput').value;
-            if (!username || !roomId) return alert("Enter Name & Room ID");
+            if (!username || !roomId) return alert("Please enter Name & Room ID");
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+                debugLog('Requesting camera access...', 'info');
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: 640, height: 480 }, 
+                    audio: true 
+                });
                 document.getElementById('localVideo').srcObject = localStream;
+                debugLog('Camera access granted', 'success');
+                
+                debugLog(`Connecting to ${SOCKET_URL}...`, 'info');
                 socket = io(SOCKET_URL);
                 setupSocketListeners();
                 
@@ -130,12 +176,22 @@
                 document.getElementById('displayUsername').innerText = username;
 
                 startFrameProcessing();
+                
                 socket.emit('join-room', { roomId, userName: username });
-            } catch (err) { alert("Camera access denied"); }
+            } catch (err) { 
+                console.error(err);
+                debugLog(`Error: ${err.message}`, 'error');
+                alert("Camera access denied or error starting call."); 
+            }
         }
 
         function setupSocketListeners() {
+            socket.on('connected', (data) => {
+                debugLog(`Connected! SID: ${data.sid.substring(0, 8)}...`, 'success');
+            });
+
             socket.on('user-joined', async (data) => {
+                debugLog(`User joined: ${data.userName}`, 'info');
                 document.getElementById('userCount').innerText = data.roomUsers.length;
                 await createPeerConnection(data.userId, true);
             });
@@ -159,61 +215,80 @@
             });
             
             socket.on('user-disconnected', (data) => {
-                if (peerConnections[data.userId]) { peerConnections[data.userId].close(); delete peerConnections[data.userId]; }
+                debugLog(`User disconnected`, 'warning');
+                if (peerConnections[data.userId]) { 
+                    peerConnections[data.userId].close(); 
+                    delete peerConnections[data.userId]; 
+                }
                 const videoEl = document.getElementById(`video-${data.userId}`);
                 if (videoEl) videoEl.parentElement.remove();
             });
 
-            // --- UPDATED SIGN DETECTION LOGIC ---
+            // ===== SIGN DETECTED EVENT =====
             socket.on('sign-detected', async (data) => {
+                signsDetected++;
+                debugLog(`Sign detected: "${data.sign}" (${data.confidence?.toFixed(2)})`, 'success');
+                
                 const rawSign = data.sign;
                 if (!rawSign) return;
 
                 const myLang = document.getElementById('languageSelect').value;
 
-                // 1. PREVENT REPETITION: Check if THIS user just said this word
+                // Filter duplicate signs
                 if (lastSignMap[data.userId] === rawSign) {
-                    return; // Ignore repeated word
+                    debugLog(`Filtered duplicate: "${rawSign}"`, 'warning');
+                    return; 
                 }
-                // Update their last sign
                 lastSignMap[data.userId] = rawSign;
 
+                // Translate & Speak
                 try {
+                    debugLog(`Translating to ${myLang}...`, 'info');
                     const res = await fetch('/translate-audio', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text: rawSign, language: myLang })
                     });
                     const result = await res.json();
                     
                     if (result.translated_text) {
-                        // Display logic handles the "Single Line" requirement
+                        debugLog(`Translated: "${result.translated_text}"`, 'success');
                         displaySubtitle(result.translated_text, data.userName, data.userId);
                         
                         if (result.audio_base64) {
-                            new Audio(result.audio_base64).play().catch(e => console.log("Audio block:", e));
+                            new Audio(result.audio_base64).play().catch(e => {
+                                debugLog("Audio blocked by browser", 'warning');
+                            });
                         }
                     }
-                } catch (e) { console.error("Translation fetch failed", e); }
+                } catch (e) { 
+                    debugLog(`Translation error: ${e.message}`, 'error');
+                }
             });
-            // ------------------------------------
 
             socket.on('receive-message', (data) => {
                 const log = document.getElementById('chatLog');
                 const div = document.createElement('div');
-                div.className = `p-2 rounded mb-2 text-sm ${data.userId === socket.id ? 'bg-blue-600 ml-auto' : 'bg-gray-700'}`;
-                div.innerHTML = `<span class="text-xs opacity-75 block">${data.userName}</span>${data.message}`;
+                div.className = `p-2 rounded mb-2 text-sm max-w-[85%] break-words ${data.userId === socket.id ? 'bg-blue-600 ml-auto' : 'bg-gray-700'}`;
+                div.innerHTML = `<span class="text-xs opacity-75 block font-semibold mb-0.5">${data.userName}</span>${data.message}`;
                 log.appendChild(div);
                 log.scrollTop = log.scrollHeight;
             });
+
+            socket.on('connect_error', (error) => {
+                debugLog(`Connection error: ${error.message}`, 'error');
+            });
+
+            socket.on('disconnect', () => {
+                debugLog('Disconnected from server', 'error');
+            });
         }
 
-        // --- UPDATED DISPLAY FUNCTION ---
         function displaySubtitle(text, userName, userId) {
             const box = document.getElementById('signOutputBox');
             const overlay = document.getElementById('liveSubtitlesOverlay');
             const container = document.getElementById('subtitleContainer');
 
-            // Show floating overlay
             container.classList.remove('hidden');
             container.classList.remove('opacity-0');
             clearTimeout(subtitleClearTimer);
@@ -221,35 +296,26 @@
                 container.classList.add('opacity-0'); 
             }, 4000);
 
-            // LOGIC: Check if the last person to speak is the same as the current person
             if (lastSpeakerId === userId) {
-                // SAME PERSON: Append text to the existing sentence
                 const currentTextSpan = document.getElementById('active-sentence-text');
                 if (currentTextSpan) {
                     currentTextSpan.innerText += " " + text;
-                    // Update overlay to show full sentence
-                    overlay.innerHTML = `<span class="text-blue-300 text-sm block">${userName}:</span> ${currentTextSpan.innerText}`;
+                    overlay.innerHTML = `<span class="text-blue-300 text-sm block mb-1">${userName}:</span> ${currentTextSpan.innerText}`;
                 }
             } else {
-                // NEW PERSON: Create a new block (break the line)
-                
-                // 1. Remove ID from previous sentence so we don't edit it anymore
                 const previousSpan = document.getElementById('active-sentence-text');
                 if (previousSpan) previousSpan.removeAttribute('id');
 
-                // 2. Create new container
                 const div = document.createElement('div');
-                div.className = "mb-3 text-sm"; // Add margin for separation between users
+                div.className = "mb-3 text-sm animate-fade-in"; 
                 div.innerHTML = `
                     <span class="text-blue-400 font-bold block text-xs mb-1">${userName}:</span>
-                    <span id="active-sentence-text" class="text-white bg-gray-800/50 px-2 py-1 rounded inline-block leading-relaxed">${text}</span>
+                    <span id="active-sentence-text" class="text-white bg-gray-800/50 px-2 py-1 rounded inline-block leading-relaxed border border-gray-700/50">${text}</span>
                 `;
                 box.appendChild(div);
 
-                // 3. Update overlay for new person
-                overlay.innerHTML = `<span class="text-blue-300 text-sm block">${userName}:</span> ${text}`;
+                overlay.innerHTML = `<span class="text-blue-300 text-sm block mb-1">${userName}:</span> ${text}`;
                 
-                // 4. Update tracker
                 lastSpeakerId = userId;
             }
 
@@ -260,36 +326,64 @@
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const video = document.getElementById('localVideo');
+            const indicator = document.getElementById('processingIndicator');
 
+            debugLog('Frame processing started (200ms interval)', 'info');
+
+            // Changed from 100ms to 200ms (5 FPS instead of 10 FPS)
+            // This reduces server load while still being fast enough for LSTM
             setInterval(() => {
                 if (!isSignDetectionEnabled || video.videoWidth === 0) return;
-                canvas.width = video.videoWidth; 
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
+                
+                framesSent++;
+                if (framesSent % 25 === 0) {
+                    debugLog(`Frames sent: ${framesSent}, Signs detected: ${signsDetected}`, 'info');
+                }
+
+                indicator.classList.remove('hidden');
+                
+                canvas.width = 320; 
+                canvas.height = 240;
+                
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
                 socket.emit('process-frame', {
-                    frame: canvas.toDataURL('image/jpeg', 0.5),
+                    frame: canvas.toDataURL('image/jpeg', 0.5),  // Increased quality from 0.4 to 0.5
                     roomId: roomId,
                     userName: username,
                     timestamp: Date.now()
                 });
-            }, 500); 
+
+                setTimeout(() => indicator.classList.add('hidden'), 100);
+            }, 200);  // Changed from 100ms to 200ms
         }
 
         async function createPeerConnection(userId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
             peerConnections[userId] = pc;
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            pc.onicecandidate = e => { if (e.candidate) socket.emit('webrtc-ice-candidate', { targetId: userId, candidate: e.candidate }); };
+            
+            pc.onicecandidate = e => { 
+                if (e.candidate) socket.emit('webrtc-ice-candidate', { targetId: userId, candidate: e.candidate }); 
+            };
+            
             pc.ontrack = e => { 
                 if (!document.getElementById(`video-${userId}`)) {
                     const div = document.createElement('div');
                     div.className = "relative bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700";
-                    div.innerHTML = `<video id="video-${userId}" autoplay playsinline class="w-full h-full object-cover"></video><div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm">User</div>`;
-                    document.getElementById('videoGrid').insertBefore(div, document.getElementById('subtitleContainer').parentElement);
+                    div.innerHTML = `
+                        <video id="video-${userId}" autoplay playsinline class="w-full h-full object-cover"></video>
+                        <div class="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded text-sm backdrop-blur-sm border border-white/10">User</div>
+                    `;
+                    const grid = document.getElementById('videoGrid');
+                    const overlay = document.getElementById('subtitleContainer').parentElement;
+                    grid.insertBefore(div, overlay);
+                    
                     div.querySelector('video').srcObject = e.streams[0];
+                    debugLog('Remote video stream added', 'success');
                 }
             };
+
             if (isInitiator) {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -302,9 +396,22 @@
             isSignDetectionEnabled = !isSignDetectionEnabled;
             const btn = document.getElementById('signToggleBtn');
             const circle = document.getElementById('signToggleCircle');
-            document.getElementById('detectionStatus').innerText = isSignDetectionEnabled ? "Active" : "Paused";
-            if(isSignDetectionEnabled) { btn.classList.replace('bg-gray-600','bg-green-500'); circle.classList.add('translate-x-4'); }
-            else { btn.classList.replace('bg-green-500','bg-gray-600'); circle.classList.remove('translate-x-4'); }
+            const status = document.getElementById('detectionStatus');
+            
+            status.innerText = isSignDetectionEnabled ? "Active" : "Paused";
+            status.className = isSignDetectionEnabled ? 
+                "text-[10px] text-green-400 mt-2 text-right font-mono uppercase" : 
+                "text-[10px] text-gray-500 mt-2 text-right font-mono uppercase";
+            
+            if(isSignDetectionEnabled) { 
+                btn.classList.replace('bg-gray-600','bg-green-500'); 
+                circle.classList.add('translate-x-4'); 
+                debugLog('Sign detection ENABLED', 'success');
+            } else { 
+                btn.classList.replace('bg-green-500','bg-gray-600'); 
+                circle.classList.remove('translate-x-4'); 
+                debugLog('Sign detection PAUSED', 'warning');
+            }
         }
 
         function sendMessage() {
@@ -317,21 +424,25 @@
         function toggleVideo() {
             const track = localStream.getVideoTracks()[0];
             track.enabled = !track.enabled;
-            document.getElementById('btnVideo').innerHTML = track.enabled ? `<i data-lucide="video"></i>` : `<i data-lucide="video-off"></i>`;
-            document.getElementById('btnVideo').classList.toggle('bg-red-600');
+            const btn = document.getElementById('btnVideo');
+            btn.innerHTML = track.enabled ? `<i data-lucide="video"></i>` : `<i data-lucide="video-off"></i>`;
+            btn.classList.toggle('bg-red-600');
             lucide.createIcons();
         }
 
         function toggleAudio() {
             const track = localStream.getAudioTracks()[0];
             track.enabled = !track.enabled;
-            document.getElementById('btnAudio').innerHTML = track.enabled ? `<i data-lucide="mic"></i>` : `<i data-lucide="mic-off"></i>`;
-            document.getElementById('btnAudio').classList.toggle('bg-red-600');
+            const btn = document.getElementById('btnAudio');
+            btn.innerHTML = track.enabled ? `<i data-lucide="mic"></i>` : `<i data-lucide="mic-off"></i>`;
+            btn.classList.toggle('bg-red-600');
             lucide.createIcons();
         }
 
         function leaveCall() { location.reload(); }
-        document.getElementById('chatInput').addEventListener('keypress', e => { if(e.key === 'Enter') sendMessage(); });
+        document.getElementById('chatInput').addEventListener('keypress', e => { 
+            if(e.key === 'Enter') sendMessage(); 
+        });
     </script>
 </body>
 </html>
